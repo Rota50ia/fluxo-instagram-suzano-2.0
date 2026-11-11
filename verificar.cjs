@@ -26,9 +26,15 @@ async function post(url,data,origin=base){const r=await fetch(base+'/api/'+url,{
  r=await post('regras/adicionar',{perfil:'teste_fluxo',gatilho:'direct',palavra:'MÚSICA',mensagem:'Aula de música'});assert.equal(r.status,200);
  r=await post('simular',{perfil:'teste_fluxo',gatilho:'direct',texto:'Gosto de musica!'});assert.deepEqual(r.data.respostas,['Aula de música']);
  r=await post('regras/adicionar',{perfil:'teste_fluxo',gatilho:'direct',palavra:'!!!',mensagem:'Olá'});assert.equal(r.status,400);
+ r=await post('regras/adicionar',{perfil:'teste_fluxo',gatilho:'comentário',palavra:'ACESSO',mensagem:'Post certo',publicacao:'123456'});assert.equal(r.status,200);
+ for(const [pub,expected] of [['123456',['Post certo']],['999',[]],['',[]]]){
+  r=await post('simular',{perfil:'teste_fluxo',gatilho:'comentário',texto:'Quero acesso',publicacao:pub});
+  assert.deepEqual(r.data.respostas.filter(x=>x==='Post certo'),expected);
+ }
+ r=await post('regras/adicionar',{perfil:'teste_fluxo',gatilho:'direct',palavra:'ACESSO',mensagem:'Não deve criar',publicacao:'123456'});assert.equal(r.status,400);
  await post('regras/alternar',{id});r=await post('simular',{perfil:'teste_fluxo',gatilho:'comentário',texto:'quero'});assert.deepEqual(r.data.respostas,[]);
  assert.equal((await post('perfis/adicionar',{nome:'fora'},'https://example.com')).status,403);
- await stop();await start();const s=await get();assert.equal(s.perfis[0],'teste_fluxo');assert.equal(s.regras.find(regra=>regra.id===id).ativa,false);assert.equal(s.simulacoes.length,13);
+ await stop();await start();const s=await get();assert.equal(s.perfis[0],'teste_fluxo');assert.equal(s.regras.find(regra=>regra.id===id).ativa,false);assert.equal(s.simulacoes.length,16);
  await post('perfis/remover',{nome:'teste_fluxo'});assert.equal((await get()).regras.length,0);
- console.log('Verificações aprovadas: páginas, cadastro, variações de palavras, limites, acentos, pausa, origem, persistência e remoção.');
+ console.log('Verificações aprovadas: páginas, cadastro, variações, publicação específica, pausa, origem, persistência e remoção.');
  }finally{if(server && server.exitCode===null)await stop();rmSync(dir,{recursive:true,force:true})}})().catch(e=>{console.error(e);process.exitCode=1});

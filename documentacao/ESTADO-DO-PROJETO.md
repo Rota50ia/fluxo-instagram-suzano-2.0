@@ -41,3 +41,15 @@ Para o caminho com Instagram Login, a [documentação oficial da Meta](https://w
 ## Verificação
 
 A verificação automatizada `node verificar.cjs` usa um banco temporário separado para testar cadastro, duplicação, simulação, pausa, restrição de origem, persistência após reinicialização e exclusão em cascata. O acesso básico à conta na Meta foi verificado; o webhook foi testado com eventos fictícios. Ainda faltam testes visuais da interface e testes reais de eventos e mensagens com a Meta.
+
+## Atualização local: motor de regras
+
+Foi adicionado um motor experimental que identifica comentários e directs em eventos fictícios, restringe o processamento a contas explicitamente autorizadas, ignora mensagens próprias e seleciona a primeira regra ativa compatível. O reconhecimento ignora caixa, acentuação e pontuação, preservando os limites das palavras. A verificação `node verificar-motor.cjs` passou.
+
+O motor é isolado: não está ligado ao receptor, ao banco de regras ou à API da Meta e não envia mensagens. Ainda não foi implantado. São necessários testes com eventos reais, configuração das regras no servidor e implementação e verificação do envio antes de ativar automações.
+
+## Primeira automação planejada
+
+Perfil: `@suzanoexpress`. Gatilho: comentário contendo a palavra `QUERO`, inclusive em frases e variações de maiúsculas e minúsculas. O usuário escolheu restringir a regra à publicação `https://www.instagram.com/p/DfnKnp0hNOM/`, identificada pela API da Meta como `18093869495691947` em 11 de novembro de 2026. Resposta: mensagem com o link `https://4-aulas-gratuitas.suzanoexpress.com.br`.
+
+A regra está cadastrada como rascunho pausado no banco local, com o ID da publicação. O painel local e o motor experimental testam a restrição; eles ainda não estão ligados ao receptor nem ao banco do servidor. Não ativar a regra até vincular e testar a restrição no fluxo real e concluir a integração com a Meta.

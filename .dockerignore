@@ -2,3 +2,6 @@
 !Dockerfile
 !Dockerfile.webhook
 !webhook.cjs
+!motor-regras.cjs
+!processador.cjs
+!status-acoes.cjs

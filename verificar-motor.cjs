@@ -1,0 +1,18 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {corresponde,identificarEventos,planejar}=require('./motor-regras.cjs');
+for(const v of ['QUERO','Quero!','eu quero','  quero   agora 😄'])assert(corresponde(v,'quero'));
+for(const v of ['euquero','quero2','queria'])assert(!corresponde(v,'quero'));
+assert(corresponde('Quero MÚSICA','musica'));
+const payload={object:'instagram',entry:[{id:'conta1',changes:[{field:'comments',value:{id:'c1',text:'Eu quero!',from:{id:'pessoa'},media:{id:'post-especifico'}}},{field:'comments',value:{id:'c2',text:'quero',from:{id:'conta1'}}}],messaging:[{sender:{id:'pessoa'},recipient:{id:'conta1'},message:{mid:'m1',text:'quero'}},{sender:{id:'conta1'},recipient:{id:'pessoa'},message:{mid:'m2',text:'quero',is_echo:true}}]},{id:'outra',changes:[{field:'comments',value:{id:'c3',text:'quero',from:{id:'pessoa'}}}]}]};
+const events=identificarEventos(payload,['conta1']);assert.deepEqual(events.map(x=>x.id),['c1','m1']);
+const rules=[{ativa:true,conta:'conta1',tipo:'comentário',palavra:'QUERO',mensagem:'Olá!'}, {ativa:true,conta:'conta1',tipo:'comentário',palavra:'QUERO',mensagem:'Duplicada'}, {ativa:false,conta:'conta1',tipo:'direct',palavra:'quero',mensagem:'Pausada'}];
+const out=planejar(events,rules);assert.equal(out.length,1);assert.equal(out[0].mensagem,'Olá!');
+assert.deepEqual(identificarEventos(payload,[]),[]);
+assert.equal(events[0].publicacao,'post-especifico');
+const restrita=[{ativa:true,conta:'conta1',tipo:'comentário',palavra:'QUERO',mensagem:'Olá!',publicacao:'post-especifico'}];
+assert.equal(planejar(events,restrita).length,1);
+assert.equal(planejar(events,[{...restrita[0],publicacao:'outro-post'}]).length,0);
+assert.equal(planejar([{...events[0],publicacao:null}],restrita).length,0);
+assert.equal(planejar([{...events[0],publicacao:'outro-post'}],restrita).length,0);
+console.log('Motor: palavras, acentos, isolamento de conta, comentários, directs, ecos, publicação específica e prioridade verificados.');

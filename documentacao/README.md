@@ -4,6 +4,7 @@ Esta pasta reúne os documentos do projeto e receberá a documentação criada n
 
 - [Estado atual e instruções de uso](ESTADO-DO-PROJETO.md)
 - [Configuração do aplicativo na Meta](CONFIGURACAO-META.md)
+- [Integração dos comentários](INTEGRACAO-COMENTARIOS.md)
 - [VPS na Hostinger](HOSPEDAGEM-HOSTINGER.md)
 - [Hospedagem na HostGator](HOSPEDAGEM-HOSTGATOR.md)
 - [Handoff da conversa de 10 de novembro](HANDOFF.md)

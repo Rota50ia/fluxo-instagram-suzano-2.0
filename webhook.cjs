@@ -3,6 +3,7 @@
 const http=require('node:http');
 const {createHmac,createHash,timingSafeEqual}=require('node:crypto');
 const {DatabaseSync}=require('node:sqlite');
+const {criarProcessador,enviarMeta}=require('./processador.cjs');
 const fs=require('node:fs');
 const path=require('node:path');
 const verifyToken=process.env.FLUXO_WEBHOOK_VERIFY_TOKEN;
@@ -14,6 +15,18 @@ const file=process.env.FLUXO_WEBHOOK_DB||path.join(__dirname,'dados','eventos.sq
 fs.mkdirSync(path.dirname(file),{recursive:true,mode:0o700});
 const db=new DatabaseSync(file);fs.chmodSync(file,0o600);
 db.exec('PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS entregas (hash TEXT PRIMARY KEY, recebida_em TEXT NOT NULL, corpo TEXT NOT NULL, processada INTEGER NOT NULL DEFAULT 0)');
+const cfg={
+ regraAtiva:process.env.FLUXO_REGRA_ATIVA==='sim',envioAtivo:process.env.FLUXO_ENVIO_ATIVO==='sim',
+ conta:process.env.FLUXO_INSTAGRAM_ID||'',publicacao:process.env.FLUXO_PUBLICACAO_ID||'',
+ mensagem:process.env.FLUXO_MENSAGEM||'',token:process.env.FLUXO_INSTAGRAM_TOKEN||'',ativacaoApos:process.env.FLUXO_ATIVACAO_APOS||''
+};
+if(cfg.regraAtiva && (!/^\d{1,40}$/.test(cfg.conta)||!/^\d{1,40}$/.test(cfg.publicacao)||!cfg.mensagem||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(cfg.ativacaoApos)||Number.isNaN(Date.parse(cfg.ativacaoApos)))){
+ console.error('A regra está desativada: a configuração é incompleta.');cfg.regraAtiva=false;
+}
+if(cfg.envioAtivo && (!cfg.regraAtiva||!cfg.token)){console.error('O envio está desativado: a configuração é incompleta.');cfg.envioAtivo=false}
+const processador=criarProcessador(db,cfg,enviarMeta);
+let busy=false;
+setInterval(async()=>{if(busy)return;busy=true;try{processador.planejarPendentes();await processador.enviarPendente()}catch{console.error('Falha ao processar evento.')}finally{busy=false}},2000).unref();
 function same(a,b){const x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length && timingSafeEqual(x,y)}
 function send(res,status,text){res.writeHead(status,{'content-type':'text/plain; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(text)}
 http.createServer((req,res)=>{

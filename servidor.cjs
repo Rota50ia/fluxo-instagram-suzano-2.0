@@ -15,6 +15,7 @@ db.exec(`PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL;
 CREATE TABLE IF NOT EXISTS perfis (nome TEXT PRIMARY KEY, criado_em TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS regras (id TEXT PRIMARY KEY, perfil TEXT NOT NULL REFERENCES perfis(nome) ON DELETE CASCADE, gatilho TEXT NOT NULL, palavra TEXT NOT NULL, mensagem TEXT NOT NULL, ativa INTEGER NOT NULL DEFAULT 1, criado_em TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS simulacoes (id TEXT PRIMARY KEY, perfil TEXT NOT NULL, gatilho TEXT NOT NULL, texto TEXT NOT NULL, respostas TEXT NOT NULL, criado_em TEXT NOT NULL);`);
+if(!db.prepare('PRAGMA table_info(regras)').all().some(c=>c.name==='publicacao')) db.exec('ALTER TABLE regras ADD COLUMN publicacao TEXT');
 const json = (res, status, body) => { res.writeHead(status, {'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}); res.end(JSON.stringify(body)); };
 const fail = (status, message) => Object.assign(new Error(message), {status});
 function clean(value, max, label) { if (typeof value !== 'string' || !value.trim() || value.trim().length > max) throw fail(400, `${label} inválido.`); return value.trim(); }
@@ -40,7 +41,7 @@ function saveToken(conta, token) {
  });
 }
 const now = () => new Date().toISOString();
-const rules = () => db.prepare('SELECT id, perfil, gatilho, palavra, mensagem, ativa FROM regras ORDER BY criado_em DESC').all().map(r=>({...r, ativa:!!r.ativa}));
+const rules = () => db.prepare('SELECT id, perfil, gatilho, palavra, mensagem, ativa, publicacao FROM regras ORDER BY criado_em DESC').all().map(r=>({...r, ativa:!!r.ativa}));
 const list = () => ({perfis:db.prepare('SELECT nome FROM perfis ORDER BY nome').all().map(x=>x.nome), regras:rules(), simulacoes:db.prepare('SELECT perfil,gatilho,texto,respostas,criado_em FROM simulacoes ORDER BY criado_em DESC LIMIT 20').all().map(x=>({...x,respostas:JSON.parse(x.respostas)}))});
 const allowedHost = h => h === `127.0.0.1:${port}` || h === `localhost:${port}`;
 const server = http.createServer(async (req,res)=>{
@@ -66,16 +67,18 @@ const server = http.createServer(async (req,res)=>{
    const nome=profile(data.nome); db.prepare('DELETE FROM perfis WHERE nome=?').run(nome);
   } else if(url.pathname==='/api/regras/adicionar') {
    const nome=profile(data.perfil), tipo=trigger(data.gatilho), palavra=clean(data.palavra,80,'Palavra'), mensagem=clean(data.mensagem,1000,'Mensagem');
+   const publicacao=typeof data.publicacao==='string' ? data.publicacao.trim() : '';
+   if(publicacao && (tipo!=='comentário' || !/^[0-9]{1,40}$/.test(publicacao))) throw fail(400,'O identificador da publicação é inválido.');
    if(!normalizeWords(palavra)) throw fail(400,'A palavra precisa conter letras ou números.');
    if(!db.prepare('SELECT 1 FROM perfis WHERE nome=?').get(nome)) throw fail(400,'Adicione o perfil primeiro.');
-   db.prepare('INSERT INTO regras VALUES (?,?,?,?,?,?,?)').run(randomUUID(),nome,tipo,palavra,mensagem,1,now());
+   db.prepare('INSERT INTO regras(id,perfil,gatilho,palavra,mensagem,ativa,criado_em,publicacao) VALUES (?,?,?,?,?,?,?,?)').run(randomUUID(),nome,tipo,palavra,mensagem,1,now(),publicacao||null);
   } else if(url.pathname==='/api/regras/alternar') {
    const id=clean(data.id,100,'Regra'); const result=db.prepare('UPDATE regras SET ativa=1-ativa WHERE id=?').run(id); if(!result.changes) throw fail(404,'Regra não encontrada.');
   } else if(url.pathname==='/api/regras/remover') {
    db.prepare('DELETE FROM regras WHERE id=?').run(clean(data.id,100,'Regra'));
   } else if(url.pathname==='/api/simular') {
-   const nome=profile(data.perfil),tipo=trigger(data.gatilho),texto=clean(data.texto,1000,'Texto'); if(!db.prepare('SELECT 1 FROM perfis WHERE nome=?').get(nome)) throw fail(400,'Perfil não encontrado.');
-   const respostas=rules().filter(r=>r.ativa && r.perfil===nome && r.gatilho===tipo && matchesKeyword(texto,r.palavra)).map(r=>r.mensagem);
+   const nome=profile(data.perfil),tipo=trigger(data.gatilho),texto=clean(data.texto,1000,'Texto'),publicacao=typeof data.publicacao==='string'?data.publicacao.trim():''; if(publicacao && !/^[0-9]{1,40}$/.test(publicacao)) throw fail(400,'O identificador da publicação é inválido.'); if(!db.prepare('SELECT 1 FROM perfis WHERE nome=?').get(nome)) throw fail(400,'Perfil não encontrado.');
+   const respostas=rules().filter(r=>r.ativa && r.perfil===nome && r.gatilho===tipo && (!r.publicacao || (tipo==='comentário' && r.publicacao===publicacao)) && matchesKeyword(texto,r.palavra)).map(r=>r.mensagem);
    db.prepare('INSERT INTO simulacoes VALUES (?,?,?,?,?,?)').run(randomUUID(),nome,tipo,texto,JSON.stringify(respostas),now()); return json(res,200,{respostas});
   } else throw fail(404,'Operação não encontrada.');
   return json(res,200,list());
