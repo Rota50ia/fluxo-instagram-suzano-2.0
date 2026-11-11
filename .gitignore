@@ -1,0 +1,11 @@
+# Dados locais, credenciais e artefatos gerados
+dados/
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite-*
+*.db
+*.zip
+.DS_Store
+node_modules/
