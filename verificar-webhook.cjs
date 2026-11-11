@@ -10,7 +10,7 @@ const dir=mkdtempSync(path.join(tmpdir(),'fluxo-webhook-'));
 const file=path.join(dir,'teste.sqlite');
 const url='http://127.0.0.1:18766/webhook';
 const secret='segredo-de-teste',verify='verificacao-de-teste';
-const child=spawn(process.execPath,['webhook.cjs'],{cwd:__dirname,env:{...process.env,FLUXO_WEBHOOK_PORT:'18766',FLUXO_WEBHOOK_DB:file,FLUXO_WEBHOOK_APP_SECRET:secret,FLUXO_WEBHOOK_VERIFY_TOKEN:verify,FLUXO_REGRA_ATIVA:'sim',FLUXO_ENVIO_ATIVO:'não',FLUXO_INSTAGRAM_ID:'100',FLUXO_PUBLICACAO_ID:'200',FLUXO_MENSAGEM:'Resposta simulada',FLUXO_ATIVACAO_APOS:'2000-01-01T00:00:00.000Z'},stdio:['ignore','pipe','pipe']});
+const child=spawn(process.execPath,['webhook.cjs'],{cwd:__dirname,env:{...process.env,FLUXO_WEBHOOK_PORT:'18766',FLUXO_WEBHOOK_DB:file,FLUXO_WEBHOOK_APP_SECRET:secret,FLUXO_WEBHOOK_VERIFY_TOKEN:verify,FLUXO_REGRA_ATIVA:'sim',FLUXO_ENVIO_ATIVO:'nao',FLUXO_TESTE_ENVIO:'nao',FLUXO_TESTE_COMENTARIO_ID:'',FLUXO_INSTAGRAM_TOKEN:'',FLUXO_INSTAGRAM_ID:'100',FLUXO_PUBLICACAO_ID:'200',FLUXO_MENSAGEM:'Resposta simulada',FLUXO_ATIVACAO_APOS:'2000-01-01T00:00:00.000Z'},stdio:['ignore','pipe','pipe']});
 async function wait(){return new Promise((ok,fail)=>{child.stdout.once('data',ok);child.once('exit',code=>fail(Error('Servidor encerrou: '+code)));setTimeout(()=>fail(Error('Tempo esgotado')),5000).unref()})}
 (async()=>{try{
  await wait();

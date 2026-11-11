@@ -23,11 +23,17 @@ function actions(){return db.prepare('SELECT comentario,estado FROM acoes ORDER 
  const w2=criarProcessador(db,config,async()=>{calls++;throw Error('conexão encerrada')});
  assert.equal(await w2.enviarPendente(),'incerta');assert.equal(actions().find(x=>x.comentario==='303').estado,'incerta');assert.equal(await w2.enviarPendente(),null);
  assert.equal(calls,2);
+ for(const id of ['400','500'])db.prepare('INSERT INTO acoes(conta,comentario,mensagem,estado,criado_em,atualizado_em) VALUES(?,?,?,?,?,?)').run('100',id,'Teste','pendente','2026-01-01','2026-01-01');
+ config.regraAtiva=false;config.envioAtivo=false;config.testeAtivo=true;config.comentarioTeste='500';
+ const tested=[];const targeted=criarProcessador(db,config,async action=>{tested.push(action.comentario);return {status:200,messageId:'ok'}});
+ assert.equal(await targeted.enviarPendente(),'enviada');assert.deepEqual(tested,['500']);
+ assert.equal(await targeted.enviarPendente(),null);assert.equal(actions().find(x=>x.comentario==='400').estado,'pendente');
+ config.comentarioTeste='inválido';assert.equal(await targeted.enviarPendente(),null);
  const originalFetch=global.fetch;
  try {
   global.fetch=async(url,options)=>{assert.equal(url,'https://graph.instagram.com/v25.0/100/messages');assert.equal(options.headers.authorization,'Bearer token-ficticio');assert.deepEqual(JSON.parse(options.body),{recipient:{comment_id:'300'},message:{text:'Olá!'}});return {status:200,json:async()=>({message_id:'m-ficticio'})}};
   const resposta=await enviarMeta({conta:'100',comentario:'300',mensagem:'Olá!',token:'token-ficticio'});assert.equal(resposta.messageId,'m-ficticio');
   await assert.rejects(()=>enviarMeta({conta:'../',comentario:'300',mensagem:'Olá!',token:'token-ficticio'}));
  } finally {global.fetch=originalFetch}
- db.close();console.log('Processador: ativação, publicação, duplicatas, envio desativado e falha incerta verificados com API simulada.');
+ db.close();console.log('Processador: ativação, publicação, duplicatas, envio desativado, falha incerta e teste direcionado verificados com API simulada.');
 })().catch(e=>{console.error(e);process.exitCode=1});

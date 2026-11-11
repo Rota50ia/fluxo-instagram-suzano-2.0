@@ -18,12 +18,15 @@ db.exec('PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS entregas (hash TEXT
 const cfg={
  regraAtiva:process.env.FLUXO_REGRA_ATIVA==='sim',envioAtivo:process.env.FLUXO_ENVIO_ATIVO==='sim',
  conta:process.env.FLUXO_INSTAGRAM_ID||'',publicacao:process.env.FLUXO_PUBLICACAO_ID||'',
- mensagem:process.env.FLUXO_MENSAGEM||'',token:process.env.FLUXO_INSTAGRAM_TOKEN||'',ativacaoApos:process.env.FLUXO_ATIVACAO_APOS||''
+ mensagem:process.env.FLUXO_MENSAGEM||'',token:process.env.FLUXO_INSTAGRAM_TOKEN||'',ativacaoApos:process.env.FLUXO_ATIVACAO_APOS||'',
+ testeAtivo:process.env.FLUXO_TESTE_ENVIO==='sim',comentarioTeste:process.env.FLUXO_TESTE_COMENTARIO_ID||''
 };
 if(cfg.regraAtiva && (!/^\d{1,40}$/.test(cfg.conta)||!/^\d{1,40}$/.test(cfg.publicacao)||!cfg.mensagem||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(cfg.ativacaoApos)||Number.isNaN(Date.parse(cfg.ativacaoApos)))){
  console.error('A regra está desativada: a configuração é incompleta.');cfg.regraAtiva=false;
 }
 if(cfg.envioAtivo && (!cfg.regraAtiva||!cfg.token)){console.error('O envio está desativado: a configuração é incompleta.');cfg.envioAtivo=false}
+if(cfg.testeAtivo && (!cfg.token||!/^\d{1,40}$/.test(cfg.conta)||!/^\d{1,40}$/.test(cfg.comentarioTeste))){console.error('O teste de envio está desativado: a configuração é incompleta.');cfg.testeAtivo=false}
+if(cfg.testeAtivo && cfg.envioAtivo){console.error('O envio normal foi desativado durante o teste.');cfg.envioAtivo=false}
 const processador=criarProcessador(db,cfg,enviarMeta);
 let busy=false;
 setInterval(async()=>{if(busy)return;busy=true;try{processador.planejarPendentes();await processador.enviarPendente()}catch{console.error('Falha ao processar evento.')}finally{busy=false}},2000).unref();

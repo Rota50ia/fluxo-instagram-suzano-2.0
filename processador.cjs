@@ -32,8 +32,14 @@ function criarProcessador(db,config,transport){
   return total;
  }
  async function enviarPendente(){
-  if(!config.envioAtivo || !config.token)return null;
-  const job=db.prepare("SELECT conta,comentario,mensagem FROM acoes WHERE estado='pendente' ORDER BY criado_em LIMIT 1").get();
+  if(!config.token)return null;
+  let job;
+  if(config.testeAtivo){
+   if(!/^\d{1,40}$/.test(config.conta||'') || !/^\d{1,40}$/.test(config.comentarioTeste||''))return null;
+   job=db.prepare("SELECT conta,comentario,mensagem FROM acoes WHERE estado='pendente' AND conta=? AND comentario=? LIMIT 1").get(config.conta,config.comentarioTeste);
+  }else if(config.envioAtivo){
+   job=db.prepare("SELECT conta,comentario,mensagem FROM acoes WHERE estado='pendente' ORDER BY criado_em LIMIT 1").get();
+  }else return null;
   if(!job)return null;
   const now=new Date().toISOString();
   const claimed=db.prepare("UPDATE acoes SET estado='enviando',atualizado_em=? WHERE conta=? AND comentario=? AND estado='pendente'").run(now,job.conta,job.comentario);
