@@ -1,6 +1,6 @@
 # Operação da automação do Instagram
 
-Este guia descreve o serviço `fluxo-instagram` no EasyPanel. O usuário confirmou o recebimento do teste e escolheu responder apenas aos novos comentários; a automação geral ainda precisa ser ativada.
+Este guia descreve o serviço `fluxo-instagram` no EasyPanel. O usuário confirmou o recebimento do teste e escolheu responder apenas aos novos comentários. A automação foi ativada e o usuário confirmou que um novo comentário gerou o direct automaticamente.
 
 ## O que está configurado
 

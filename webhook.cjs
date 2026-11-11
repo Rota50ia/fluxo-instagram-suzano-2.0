@@ -1,5 +1,5 @@
 'use strict';
-// Receptor separado do painel. Apenas loopback; uma publicação segura precisa encaminhar exclusivamente /webhook.
+// Receptor separado do painel. O host é configurável; exponha somente o endpoint de webhook.
 const http=require('node:http');
 const {createHmac,createHash,timingSafeEqual}=require('node:crypto');
 const {DatabaseSync}=require('node:sqlite');

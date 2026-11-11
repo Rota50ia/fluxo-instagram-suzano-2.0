@@ -1,61 +1,54 @@
-# Integração de comentários: estado e preparação
+# Integração de comentários — estado atual
 
-## Implementado localmente
+**Atualizado em:** 11 de novembro de 2026. Consulte [Handoff](HANDOFF.md) para retomar o trabalho e [Manual de construção](MANUAL-DE-CONSTRUCAO.md) para a arquitetura completa.
 
-O receptor verifica o token de inscrição e a assinatura HMAC, grava as entregas em SQLite e pode planejar uma resposta por comentário para uma única conta e publicação. Uma tarefa registrada como `enviando` ou `incerta` não é repetida automaticamente: caso a confirmação da Meta se perca, é necessário verificar o resultado antes de qualquer nova tentativa. O envio usa a API de mensagens com o ID do comentário como destinatário.
+## Fluxo confirmado
 
-As opções de processar regras e de enviar são independentes e **desativadas por padrão**. O envio depende de configuração explícita; não deve ser habilitado antes de verificar os eventos reais, a identidade da conta recebida pela Meta, as permissões, o controle de acesso e o armazenamento.
+A Meta notificou o webhook sobre um comentário real no post do `@suzanoexpress`. Uma tentativa direcionada retornou `enviada` e o usuário confirmou o recebimento do direct. Em seguida, a regra geral foi ativada e o usuário confirmou que outro comentário novo gerou automaticamente a mensagem e o link corretos.
 
-A regra inicial é o rascunho local da publicação `https://www.instagram.com/p/DfnKnp0hNOM/`, identificada na consulta à API como `18093869495691947`. O painel local ainda não sincroniza suas regras com a VPS: a primeira regra no servidor depende de configuração separada. Não apresentar a interface como controle das automações remotas.
+O fluxo usa a API oficial: o servidor recebe uma entrega assinada, grava o corpo, identifica o comentário e o post, compara a palavra `QUERO`, registra uma ação única por conta e comentário e envia uma resposta privada associada ao ID do comentário. O usuário confirmou o sucesso desse cenário; não há evidência de testes abrangentes em todas as condições da Meta.
 
-## Variáveis previstas no serviço
+- Conta de evento e `user_id` observado: `17841407777954952`.
+- Post: `https://www.instagram.com/p/DfnKnp0hNOM/`, mídia `18093869495691947`.
+- Oferta: `https://4-aulas-gratuitas.suzanoexpress.com.br`.
+- Ambiente: projeto `suzanoblog`, serviço `fluxo-instagram`, EasyPanel em VPS Hostinger.
+- URL de callback: `https://suzanoblog-fluxo-instagram.7lvlou.easypanel.host/webhook`.
 
-As duas variáveis de verificação do webhook já estão configuradas no EasyPanel. As variáveis abaixo são documentadas para revisão; não há necessidade de adicioná-las ou habilitá-las antes dos testes reais:
+## Regras de correspondência
 
-- `FLUXO_REGRA_ATIVA`: somente `sim` permite planejar respostas; ausente mantém a regra desligada.
-- `FLUXO_ENVIO_ATIVO`: somente `sim` permite enviar; ausente mantém o envio desligado.
-- `FLUXO_INSTAGRAM_ID`: identificador da conta no evento, a confirmar com a Meta.
-- `FLUXO_PUBLICACAO_ID`: identificador do post escolhido.
-- `FLUXO_MENSAGEM`: texto da resposta.
-- `FLUXO_ATIVACAO_APOS`: data UTC ISO 8601 com milissegundos; entregas anteriores a ela não geram ações.
-- `FLUXO_INSTAGRAM_TOKEN`: token de acesso da conta, que só deve ser configurado em armazenamento seguro no servidor.
+A normalização remove diferenças de caixa, sinais de acentuação e pontuação e exige o termo como palavra inteira. Aceita `QUERO`, `Quero!` e `eu quero`; não aceita `queria` ou `euquero`. Não há análise de intenção: `não quero` também é uma correspondência. O serviço ignora comentários da própria conta e exige a conta e a mídia configuradas.
 
-`node status-acoes.cjs`, executado dentro do contêiner, fornece somente contagens por estado. Dados das entregas e mensagens ficam em `/data/eventos.sqlite`; configure backup e política de retenção antes do uso real. A deduplicação da resposta usa a conta e o ID do comentário. O receptor ainda deduplica entregas com corpo idêntico.
+Hoje há apenas **uma conta, uma publicação e uma resposta** para o fluxo real. A palavra `QUERO` está fixa em `processador.cjs`. A versão local do painel usa outro banco e não sincroniza configurações com a VPS. Várias regras reais são a próxima fase, não uma capacidade já disponível.
 
-## Verificação e limites
+## Webhook e fila
 
-Foram executados testes locais com dados fictícios: correspondência de palavras e publicação, checagem da assinatura do webhook, registro de entregas, deduplicação e planejamento; o envio foi testado com um transporte simulado, incluindo erro de rede. Nenhuma mensagem real foi enviada. A imagem do contêiner e o processamento integrado ainda não foram implantados nem testados na VPS.
+A verificação inicial usa `hub.verify_token`; as entregas POST são verificadas com HMAC SHA-256 sobre o corpo bruto. O servidor aceita somente o objeto Instagram e salva a entrega válida antes de responder. Corpos exatamente iguais são deduplicados por hash. Para as ações, a chave `(conta, comentario)` impede criar duas ações para o mesmo comentário. O processador usa SQLite persistente em `/data/eventos.sqlite`.
 
-Antes da ativação, testar com usuários autorizados, conferir se o webhook recebe o evento correto e se a assinatura é verificada, confirmar o ID da conta no evento, validar o endpoint de resposta privada com a API da Meta e conferir o fluxo de acompanhamento dos erros. A disponibilidade para contas fora das funções do aplicativo depende da configuração e das permissões aprovadas na Meta.
+Os estados incluem `pendente`, `enviando`, `enviada`, `falhou`, `incerta` e `ignorada_antes_ativacao`. Um erro de rede ou uma interrupção durante envio pode deixar resultado incerto: **não reenvie cegamente**. A API pode ter aceitado o direct mesmo que o serviço não tenha recebido a resposta. Não há recuperação automática completa nem alerta de falhas.
 
-## Teste do webhook na VPS
+## Ativação e variáveis
 
-Em 11 de novembro de 2026, o usuário configurou o domínio público do EasyPanel para encaminhar HTTP ao serviço na porta 8766, cadastrou a URL de callback na Meta e verificou o token. O campo `comments` aparecia como assinado. A Meta enviou seu evento fictício de teste e o usuário confirmou no banco persistente da VPS uma entrega contendo o identificador do exemplo. O receptor exige assinatura válida antes de registrar a entrega, portanto esse resultado confirma o caminho e a validação para esse teste específico.
+As seguintes variáveis devem ser configuradas somente no ambiente protegido do EasyPanel; os valores de credenciais jamais devem entrar neste documento, no Git, nos logs ou no chat.
 
-O processamento de regras e o envio permaneciam desativados por padrão. Esse teste não confirma o recebimento de comentários reais, o status de publicação do aplicativo, a assinatura do webhook no nível da conta, as permissões para público externo ou o envio de direct.
+| Variável | Função |
+| --- | --- |
+| `FLUXO_WEBHOOK_VERIFY_TOKEN` | Segredo criado pelo operador para a verificação inicial do callback. |
+| `FLUXO_WEBHOOK_APP_SECRET` | Chave do aplicativo usada para conferir a assinatura das entregas. |
+| `FLUXO_INSTAGRAM_TOKEN` | Token de acesso da conta usado na API da Meta. |
+| `FLUXO_INSTAGRAM_ID` | Conta autorizada para receber e enviar eventos. |
+| `FLUXO_PUBLICACAO_ID` | Mídia autorizada para a regra atual. |
+| `FLUXO_MENSAGEM` | Texto a ser enviado ao comentarista. |
+| `FLUXO_REGRA_ATIVA` | `sim` habilita o planejamento da regra; `nao` desabilita. |
+| `FLUXO_ENVIO_ATIVO` | `sim` habilita o envio; `nao` desabilita. |
+| `FLUXO_ATIVACAO_APOS` | Em `auto`, marca a ativação no banco; também aceita data UTC ISO com milissegundos. |
+| `FLUXO_TESTE_ENVIO`, `FLUXO_TESTE_COMENTARIO_ID` | Modo de teste direcionado; mantenha desligado fora de testes expressamente autorizados. |
 
-Em seguida, o usuário informou que ativou a assinatura de webhook da conta `@suzanoexpress`. A Meta informou na interface que o app precisa estar publicado para receber webhooks; o funcionamento com comentários reais ainda não foi confirmado.
+Em `auto`, a primeira inicialização com regra e envio ativos marca a hora, ignora ações pendentes anteriores da conta e considera apenas entregas recebidas após o marco. O marco persiste em reinícios. Após uma pausa aplicada corretamente e posterior reativação, é criado um novo marco. Esse filtro é baseado no **recebimento do webhook**, não prova que o comentário foi criado após a ativação. Mantenha uma única réplica até que a concorrência seja revista.
 
-Em seguida, o usuário informou que publicou o aplicativo na Meta e repetiu o teste comentando `QUERO` no post escolhido. A consulta ao banco do serviço confirmou uma entrega real correspondente ao post `18093869495691947`, com `entry.id` da conta `17841407777954952`. O ID da conta no evento é diferente do ID retornado anteriormente pela consulta `/me`; para a configuração do filtro de eventos, usar o ID efetivamente observado no webhook e validar também o identificador exigido pela API de envio. A regra e o envio continuavam desativados durante esse teste.
+## Verificação e restrições
 
-## Modo de teste direcionado
+O usuário escolheu não responder ao histórico anterior. Os dois comentários antigos foram informados como pertencentes aos próprios perfis de teste. Um teste da Meta após a troca das credenciais foi registrado no servidor. O usuário informou que a chave do app e o token de verificação expostos em captura foram substituídos; não reproduza os valores anteriores.
 
-Foi preparado localmente um modo de teste desligado por padrão. Quando explicitamente habilitado, ele seleciona somente uma ação pendente pelo ID do comentário e pelo ID da conta, mesmo com a regra e o envio normais desligados. Após uma tentativa, o estado é salvo e não há repetição automática para o mesmo comentário. O envio real só deve ser ativado após confirmação do usuário e após a atualização controlada na VPS.
+A Meta exibiu que a análise do aplicativo podia ser pulada para uso nas próprias empresas e informou requisitos de publicação. A disponibilidade real para outros usuários, escopos de permissão, duração do token, limites e regras de mensagens devem ser conferidos na [documentação oficial da Meta](https://www.postman.com/meta/instagram/documentation/6yqw8pt/instagram-api) quando forem usados; não extrapole o teste executado para todos os cenários.
 
-Variáveis de teste: `FLUXO_TESTE_ENVIO=sim` e `FLUXO_TESTE_COMENTARIO_ID` com o identificador exato. Quando não estiver em teste, manter `FLUXO_TESTE_ENVIO=nao` ou ausente. Não habilitar esse modo simultaneamente ao envio normal. O teste usa o token já armazenado no ambiente da VPS; não o exibir em logs nem compartilhá-lo no chat.
-
-A resposta da API pode ser `enviada`, `falhou` ou `incerta`. Se for incerta, não repetir sem verificar se o destinatário recebeu a mensagem. A API real ainda não foi testada para o envio de respostas privadas.
-
-## Primeiro envio real controlado
-
-Em 11 de novembro de 2026, após confirmação do usuário, foi executada uma tentativa direcionada para o comentário de teste pendente. O status do processador na VPS mostrou uma ação `enviada`, ou seja, a API retornou sucesso com identificador de mensagem. O usuário confirmou que a conta de teste recebeu a mensagem e o link corretamente. A regra e o envio automáticos continuavam desligados após o teste; quatro entregas constavam como pendentes de processamento.
-
-Antes da ativação geral, verificar o conteúdo recebido, decidir o tratamento das entregas anteriores, definir o instante de ativação e confirmar com o usuário. A regra do servidor é configurada separadamente das regras do painel local; o painel local ainda não permite gerenciar o serviço remoto.
-
-## Ativação apenas para novas entregas
-
-O usuário escolheu responder somente aos novos comentários e informou que os comentários anteriores eram de seus próprios perfis. Foi preparado localmente o modo `FLUXO_ATIVACAO_APOS=auto`: quando a regra e o envio normais são ativados juntos, o servidor registra a hora da ativação no volume persistente, ignora ações pendentes anteriores para aquela conta e considera apenas entregas recebidas depois desse marco. Reinícios preservam o marco; ao pausar e reativar, um novo marco é criado.
-
-A condição é baseada no horário em que o webhook chega ao servidor. Uma entrega atrasada de comentário anterior pode chegar após o marco e ser processada; o usuário informou que os dois comentários anteriores são de seus próprios perfis. Para reduzir esse risco em outras campanhas, validar a data do comentário junto à Meta antes de enviar. É necessário manter uma única réplica do serviço e conferir a implantação da pausa antes de reativar.
-
-Essa versão foi testada localmente. A implantação na VPS deve ser verificada no EasyPanel. A ativação das respostas normais precisa ser feita explicitamente nas variáveis do serviço e verificada antes de ser considerada concluída.
+Consulte [Operação da automação](OPERACAO-DA-AUTOMACAO.md) para status e pausa. O modo de teste direcionado é uma ferramenta para situações pontuais, não um modo de operação contínuo. Para a nova fase, veja os critérios de migração e testes no [manual](MANUAL-DE-CONSTRUCAO.md).

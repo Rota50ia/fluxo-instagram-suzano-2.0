@@ -1,55 +1,37 @@
-# Fluxo para Instagram — estado do projeto
+# Fluxo para Instagram — estado atual
 
-**Atualizado em:** 11 de novembro de 2026, após a verificação da conta na Meta
+**Atualizado em:** 11 de novembro de 2026.
+**Próxima fase:** múltiplas publicações e gatilhos com painel conectado ao servidor.
 
-## Objetivo
+## Em funcionamento
 
-Criar uma ferramenta própria de automação para os perfis de Instagram do Edilson. O objetivo futuro inclui responder a comentários e directs por meio da integração oficial da Meta.
+O usuário confirmou um teste real completo: no `@suzanoexpress`, um novo comentário contendo `QUERO` no [post definido](https://www.instagram.com/p/DfnKnp0hNOM/) gerou automaticamente um direct com a mensagem e o link `https://4-aulas-gratuitas.suzanoexpress.com.br` corretos.
 
-## O que já funciona no computador
+A execução confirmada na sessão usa Meta Instagram Login, um webhook HTTPS, serviço `fluxo-instagram` no EasyPanel da VPS Hostinger e o volume `/data`. O identificador do post é `18093869495691947` e o identificador da conta observado no webhook e no campo `user_id` é `17841407777954952`. O estado atual em um momento futuro deve ser reconferido; não foi feito monitoramento contínuo depois da confirmação do usuário.
 
-- Cadastrar e remover perfis.
-- Criar e excluir regras por perfil, tipo de interação e palavra.
-- Ativar e pausar regras para simulações.
-- Identificar a palavra em frases, ignorando maiúsculas, minúsculas, acentos, espaços e pontuação. Ex.: `QUERO` identifica `Quero!` e `eu quero`, mas não `euquero`. Outras palavras ou conjugações, como `queria`, não são reconhecidas automaticamente.
-- Simular comentários e directs e consultar as 20 simulações mais recentes.
-- Guardar manualmente um token por perfil no Chaves do macOS, sem validação automática nem conexão à Meta.
-- Salvar perfis, regras e simulações em SQLite, no arquivo `dados/fluxo.sqlite`, criado pelo servidor local. O banco não deve ser incluído em repositórios públicos.
+A correspondência ignora caixa, acentuação e pontuação e identifica palavras inteiras em frases. `Quero!` e `eu quero` correspondem; `euquero` e `queria` não. O texto `não quero` também corresponde porque o sistema não interpreta a intenção.
 
-O formulário de token armazena a credencial no Chaves. Uma consulta separada de leitura confirmou acesso básico à conta @suzanoexpress; o painel ainda não usa o token para automações. As respostas acima são apenas simulações. **As automações reais ainda não estão implementadas**; o aplicativo não recebe eventos reais nem envia mensagens.
+## Limitações atuais
 
-## Como iniciar
+- Uma regra real: a palavra `QUERO` está fixa no processador; conta, publicação e mensagem vêm do ambiente do serviço.
+- O painel local no Mac permite simulações e cadastro local, mas não está conectado à VPS e não gerencia regras reais.
+- O ativador `auto` usa a data de chegada do webhook. Comentários antigos cujos eventos chegarem atrasados podem ser considerados novos.
+- O serviço não possui painel remoto, alerta automático de falhas nem uma política de retenção implementada. A existência de backup operacional do volume ainda não foi comprovada.
+- O corpo dos eventos é armazenado no servidor e pode conter dados pessoais; mantenha acesso restrito e defina retenção e backups adequados.
+- Erros de envio e resultados incertos não são repetidos automaticamente. Uma ação incerta pode ter sido entregue e exige conferência.
 
-1. Abra um terminal na pasta `instagram-automacoes`.
-2. Execute `node servidor.cjs` com Node.js 24 instalado.
-3. Acesse <http://127.0.0.1:8765> enquanto o servidor estiver ligado.
-4. Para parar, pressione `Ctrl+C` no terminal.
+## O que construir a seguir
 
-O utilitário local de armazenamento do token é compilado com `swiftc chaves.swift -o dados/fluxo-chaves`, caso seja necessário recriá-lo. O servidor foi pensado para acesso apenas no próprio computador. Não exponha essa interface diretamente à internet. Os dados ficam na pasta `dados`; preserve essa pasta em backups privados. O arquivo `previa-original.html` preserva a versão inicial da interface, mas os dados guardados no armazenamento do navegador não são migrados automaticamente para o banco. O acesso a esses dados antigos depende do navegador e da forma como o arquivo foi aberto.
+Permitir múltiplas regras reais, cada uma com publicação, gatilho, mensagem, link, status e possibilidade de pausa, através de painel seguro conectado ao banco do servidor. Migrar e preservar a automação existente, evitar respostas duplicadas e não depender de editar variáveis de ambiente para cada post. Os detalhes estão no [Manual de construção](MANUAL-DE-CONSTRUCAO.md) e no [handoff](HANDOFF.md).
 
-## Integração com a Meta: pendências
+## Painel local
 
-- Confirmar qual perfil profissional será conectado primeiro e se já existe um aplicativo Meta apropriado.
-- Escolher e configurar o método de login conforme o aplicativo e as permissões disponíveis.
-- Definir a primeira automação real, seu gatilho e mensagem.
-- Concluir a conexão do painel com a API, publicar e configurar o webhook, processar eventos e implementar o envio pela API oficial. O receptor experimental já verifica assinatura e registra entregas em ambiente local, mas não processa eventos; a deduplicação atual é apenas por corpo de entrega idêntico.
-- Disponibilizar um endpoint HTTPS adequado para webhooks, sem expor o painel local.
-- Testar com contas autorizadas e validar as regras e limitações vigentes da Meta.
+Para abrir a prévia local: execute `node servidor.cjs` na pasta do projeto com Node.js 24 e acesse `http://127.0.0.1:8765`. O banco `dados/fluxo.sqlite` não é o banco remoto. O utilitário do Chaves do macOS pode ser recriado com `swiftc chaves.swift -o dados/fluxo-chaves`. Não exponha o painel local à internet.
 
-Para o caminho com Instagram Login, a [documentação oficial da Meta](https://www.postman.com/meta/instagram/documentation/6yqw8pt/instagram-api) lista permissões específicas para mensagens e comentários. Os requisitos variam conforme o método de login e os recursos usados; devem ser confirmados antes de configurar o aplicativo. Não inserir senhas, tokens ou segredos em documentos ou no código.
+## Evidências verificadas nesta revisão
 
-## Verificação
+- Testes locais do motor, processador e controle de ativação passaram em 11/11/2026 com dados fictícios.
+- O endpoint público respondeu HTTP 403 a um GET sem token, comportamento esperado para uma verificação não autenticada; isso não demonstra que directs estejam sendo enviados no momento da consulta.
+- O repositório remoto `main` apontava para o commit de código `15581eb` antes das atualizações documentais. A VPS não foi acessada diretamente nesta revisão.
 
-A verificação automatizada `node verificar.cjs` usa um banco temporário separado para testar cadastro, duplicação, simulação, pausa, restrição de origem, persistência após reinicialização e exclusão em cascata. O acesso básico à conta na Meta foi verificado; o webhook foi testado com eventos fictícios. Ainda faltam testes visuais da interface e testes reais de eventos e mensagens com a Meta.
-
-## Atualização local: motor de regras
-
-Foi adicionado um motor experimental que identifica comentários e directs em eventos fictícios, restringe o processamento a contas explicitamente autorizadas, ignora mensagens próprias e seleciona a primeira regra ativa compatível. O reconhecimento ignora caixa, acentuação e pontuação, preservando os limites das palavras. A verificação `node verificar-motor.cjs` passou.
-
-O motor é isolado: não está ligado ao receptor, ao banco de regras ou à API da Meta e não envia mensagens. Ainda não foi implantado. São necessários testes com eventos reais, configuração das regras no servidor e implementação e verificação do envio antes de ativar automações.
-
-## Primeira automação planejada
-
-Perfil: `@suzanoexpress`. Gatilho: comentário contendo a palavra `QUERO`, inclusive em frases e variações de maiúsculas e minúsculas. O usuário escolheu restringir a regra à publicação `https://www.instagram.com/p/DfnKnp0hNOM/`, identificada pela API da Meta como `18093869495691947` em 11 de novembro de 2026. Resposta: mensagem com o link `https://4-aulas-gratuitas.suzanoexpress.com.br`.
-
-A regra está cadastrada como rascunho pausado no banco local, com o ID da publicação. O painel local e o motor experimental testam a restrição; eles ainda não estão ligados ao receptor nem ao banco do servidor. Não ativar a regra até vincular e testar a restrição no fluxo real e concluir a integração com a Meta.
+Veja também: [Integração](INTEGRACAO-COMENTARIOS.md), [Operação](OPERACAO-DA-AUTOMACAO.md) e [VPS Hostinger](HOSPEDAGEM-HOSTINGER.md).

@@ -1,39 +1,27 @@
-# Configuração do aplicativo na Meta
+# Configuração da Meta — Fluxo para Instagram
 
-**Projeto:** Fluxo para Instagram  
-**Atualizado em:** 11 de novembro de 2026
+**Atualizado em:** 11 de novembro de 2026. Esta página registra a configuração observada; confirme a interface e as regras da Meta antes de uma mudança futura.
 
-## Primeiro passo: localizar ou criar o aplicativo
+## Configuração realizada
 
-1. Acesse [Meus aplicativos](https://developers.facebook.com/apps/) com sua conta de desenvolvedor.
-2. Se já houver um aplicativo que queira usar para este projeto, abra-o e confira as opções disponíveis. Não altere a configuração de aplicativos de outras integrações sem revisar seus usos.
-3. Se ainda não houver um aplicativo para o Fluxo, selecione **Criar aplicativo**. Quando solicitado, use, por exemplo, o nome `Fluxo Instagram` e seu e-mail de contato.
-4. Na etapa de casos de uso ou produtos, procure a opção relacionada à **API do Instagram**, ao gerenciamento de mensagens ou comentários. Os nomes e a ordem das telas podem variar. Anote as opções exibidas antes de escolher se houver dúvida.
-5. Concluída a criação, mantenha o aplicativo em desenvolvimento enquanto preparamos a integração e os testes.
+- Aplicativo existente: `suzano express atendimento`.
+- Caso de uso: **Gerenciar mensagens e conteúdo no Instagram**; a conexão escolhida foi **API com login do Instagram**.
+- Conta profissional: `@suzanoexpress`; o convite de testador foi aceito.
+- O usuário autorizou permissões de perfil, comentários, mensagens, publicação e insights na tela da Meta. O acesso à API deve ser verificado novamente antes de depender de cada recurso.
+- A Meta mostrou que a análise poderia ser pulada para uso apenas nas próprias empresas. Depois, o usuário informou que publicou o aplicativo.
+- A URL HTTPS de callback foi verificada na Meta. O campo `comments` aparecia assinado e o usuário ativou a assinatura do webhook para a conta. Outros campos também apareciam assinados; não desative outros eventos sem avaliar o impacto.
+- Um teste fictício e um comentário real chegaram ao receptor. Um direct de teste e, depois, um teste automático completo foram confirmados pelo usuário.
 
-## Para as próximas etapas
+## Callback e segurança
 
-O perfil que será conectado precisa ser profissional. A Meta oferece caminhos diferentes, incluindo Instagram Login e Facebook Login, com requisitos e permissões próprios. No caminho com Instagram Login, a [documentação oficial da Meta](https://www.postman.com/meta/instagram/documentation/6yqw8pt/instagram-api) lista, entre outras, as permissões `instagram_business_basic`, `instagram_business_manage_messages` e `instagram_business_manage_comments`. A disponibilidade de cada recurso deve ser verificada no aplicativo concreto.
+Callback atual: `https://suzanoblog-fluxo-instagram.7lvlou.easypanel.host/webhook`. O EasyPanel encaminha o tráfego HTTPS para HTTP na porta interna `8766`. O endereço do painel local não é acessível pela Meta.
 
-Quando chegarmos à configuração de webhooks, precisaremos primeiro implementar um endpoint HTTPS acessível à Meta. O endereço local do painel não é um webhook público e o servidor atual ainda não implementa essa integração. Não preencha valores inventados.
+Há três credenciais com papéis diferentes: token de verificação do callback, chave do app para validar assinatura e token de acesso da conta para a API. Elas ficam no ambiente protegido do EasyPanel; uma cópia do token de acesso foi guardada no Chaves do Mac. **Não coloque valores, capturas, senhas ou tokens nesta documentação ou no chat.**
 
-A conta de desenvolvedor, o aplicativo, as permissões, a assinatura dos eventos e o backend precisam estar configurados e testados antes que haja automação real. A disponibilidade para pessoas fora dos papéis de teste pode exigir liberações adicionais da Meta.
+A chave do aplicativo e o token de verificação foram expostos numa captura e, segundo o usuário, substituídos. Após a substituição, uma nova entrega de teste foi registrada. Uma consulta separada confirmou acesso básico com o token de conta; não conclua que todas as permissões ou o prazo de validade estão monitorados.
 
-Não enviar por mensagens senhas, tokens, chaves, códigos de autenticação ou segredo do aplicativo. Se precisar mostrar a tela, oculte esses dados.
+## Alterações futuras
 
-## Progresso confirmado na conversa
+A documentação da Meta e a interface mudam. Antes de adicionar perfis, permissões, autenticação ou publicar alterações, confira a [documentação oficial da API do Instagram](https://www.postman.com/meta/instagram/documentation/6yqw8pt/instagram-api) e o estado do app. O uso para clientes ou terceiros não foi solicitado e pode exigir requisitos diferentes.
 
-- O usuário adicionou o caso de uso do Instagram ao aplicativo existente `suzano express atendimento`.
-- A conta profissional `@suzanoexpress` aceitou o convite de testador e gerou um token de acesso.
-- A tela de autorização incluiu mensagens, comentários, publicação e insights. A concessão real e o acesso por API ainda precisam ser verificados.
-- O painel local permite guardar manualmente o token no Chaves do macOS. Armazená-lo não valida a credencial, não implementa a API e não habilita os webhooks. Não registrar o valor do token neste documento.
-- O endpoint público de webhook e o envio e recebimento de eventos ainda precisam ser implementados e testados.
-
-
-## Verificação realizada em 11 de novembro de 2026
-
-A consulta de leitura à API do Instagram respondeu com sucesso para `@suzanoexpress`, utilizando o token armazenado no Chaves. Essa verificação confirma acesso básico à conta, mas não comprova que mensagens, comentários ou webhooks estejam funcionando. O token não foi exibido ou registrado na documentação.
-
-O projeto também possui um receptor local experimental em `webhook.cjs`, separado do painel. Ele valida o desafio e a assinatura, registra entregas válidas em um banco local e ignora entregas com o mesmo conteúdo exato. Ele ainda não processa as entregas nem envia respostas. Foi testado apenas com dados fictícios; não foi ligado à Meta nem publicado. A configuração e a origem exata do segredo de assinatura devem ser confirmadas para o aplicativo e o método de login antes de qualquer publicação.
-
-**Próxima etapa:** definir onde hospedar o receptor com HTTPS e preparar o processamento seguro dos eventos. O endpoint público deve expor somente o receptor de webhook, nunca o painel ou o banco de dados. Em modo de desenvolvimento, a Meta pode limitar os eventos aos usuários que tenham funções de teste.
+Se precisar trocar alguma credencial, coordene a atualização entre a Meta e o serviço, preserve a possibilidade de rollback e verifique o recebimento depois. Uma chave ou token antigo podem deixar de funcionar; consulte a Meta para o comportamento específico. Não mostre a seção Ambiente do EasyPanel em capturas.

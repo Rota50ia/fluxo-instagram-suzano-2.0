@@ -1,4 +1,4 @@
-# Protótipo para revisão no EasyPanel: ainda não processa eventos nem envia respostas.
+# Receptor e processador de comentários para implantação no EasyPanel.
 FROM node:24-slim
 ENV NODE_ENV=production FLUXO_WEBHOOK_PORT=8766 FLUXO_WEBHOOK_HOST=0.0.0.0 FLUXO_WEBHOOK_DB=/data/eventos.sqlite
 WORKDIR /app
