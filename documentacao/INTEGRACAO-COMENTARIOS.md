@@ -45,3 +45,17 @@ Foi preparado localmente um modo de teste desligado por padrão. Quando explicit
 Variáveis de teste: `FLUXO_TESTE_ENVIO=sim` e `FLUXO_TESTE_COMENTARIO_ID` com o identificador exato. Quando não estiver em teste, manter `FLUXO_TESTE_ENVIO=nao` ou ausente. Não habilitar esse modo simultaneamente ao envio normal. O teste usa o token já armazenado no ambiente da VPS; não o exibir em logs nem compartilhá-lo no chat.
 
 A resposta da API pode ser `enviada`, `falhou` ou `incerta`. Se for incerta, não repetir sem verificar se o destinatário recebeu a mensagem. A API real ainda não foi testada para o envio de respostas privadas.
+
+## Primeiro envio real controlado
+
+Em 11 de novembro de 2026, após confirmação do usuário, foi executada uma tentativa direcionada para o comentário de teste pendente. O status do processador na VPS mostrou uma ação `enviada`, ou seja, a API retornou sucesso com identificador de mensagem. O usuário confirmou que a conta de teste recebeu a mensagem e o link corretamente. A regra e o envio automáticos continuavam desligados após o teste; quatro entregas constavam como pendentes de processamento.
+
+Antes da ativação geral, verificar o conteúdo recebido, decidir o tratamento das entregas anteriores, definir o instante de ativação e confirmar com o usuário. A regra do servidor é configurada separadamente das regras do painel local; o painel local ainda não permite gerenciar o serviço remoto.
+
+## Ativação apenas para novas entregas
+
+O usuário escolheu responder somente aos novos comentários e informou que os comentários anteriores eram de seus próprios perfis. Foi preparado localmente o modo `FLUXO_ATIVACAO_APOS=auto`: quando a regra e o envio normais são ativados juntos, o servidor registra a hora da ativação no volume persistente, ignora ações pendentes anteriores para aquela conta e considera apenas entregas recebidas depois desse marco. Reinícios preservam o marco; ao pausar e reativar, um novo marco é criado.
+
+A condição é baseada no horário em que o webhook chega ao servidor. Uma entrega atrasada de comentário anterior pode chegar após o marco e ser processada; o usuário informou que os dois comentários anteriores são de seus próprios perfis. Para reduzir esse risco em outras campanhas, validar a data do comentário junto à Meta antes de enviar. É necessário manter uma única réplica do serviço e conferir a implantação da pausa antes de reativar.
+
+Essa versão foi testada localmente. A implantação na VPS deve ser verificada no EasyPanel. A ativação das respostas normais precisa ser feita explicitamente nas variáveis do serviço e verificada antes de ser considerada concluída.

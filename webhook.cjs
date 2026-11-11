@@ -4,6 +4,7 @@ const http=require('node:http');
 const {createHmac,createHash,timingSafeEqual}=require('node:crypto');
 const {DatabaseSync}=require('node:sqlite');
 const {criarProcessador,enviarMeta}=require('./processador.cjs');
+const {configurarAtivacao}=require('./controle-ativacao.cjs');
 const fs=require('node:fs');
 const path=require('node:path');
 const verifyToken=process.env.FLUXO_WEBHOOK_VERIFY_TOKEN;
@@ -21,13 +22,18 @@ const cfg={
  mensagem:process.env.FLUXO_MENSAGEM||'',token:process.env.FLUXO_INSTAGRAM_TOKEN||'',ativacaoApos:process.env.FLUXO_ATIVACAO_APOS||'',
  testeAtivo:process.env.FLUXO_TESTE_ENVIO==='sim',comentarioTeste:process.env.FLUXO_TESTE_COMENTARIO_ID||''
 };
-if(cfg.regraAtiva && (!/^\d{1,40}$/.test(cfg.conta)||!/^\d{1,40}$/.test(cfg.publicacao)||!cfg.mensagem||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(cfg.ativacaoApos)||Number.isNaN(Date.parse(cfg.ativacaoApos)))){
+if(cfg.regraAtiva && (!/^\d{1,40}$/.test(cfg.conta)||!/^\d{1,40}$/.test(cfg.publicacao)||!cfg.mensagem||(cfg.ativacaoApos!=='auto'&&(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(cfg.ativacaoApos)||Number.isNaN(Date.parse(cfg.ativacaoApos)))))){
  console.error('A regra está desativada: a configuração é incompleta.');cfg.regraAtiva=false;
 }
 if(cfg.envioAtivo && (!cfg.regraAtiva||!cfg.token)){console.error('O envio está desativado: a configuração é incompleta.');cfg.envioAtivo=false}
 if(cfg.testeAtivo && (!cfg.token||!/^\d{1,40}$/.test(cfg.conta)||!/^\d{1,40}$/.test(cfg.comentarioTeste))){console.error('O teste de envio está desativado: a configuração é incompleta.');cfg.testeAtivo=false}
 if(cfg.testeAtivo && cfg.envioAtivo){console.error('O envio normal foi desativado durante o teste.');cfg.envioAtivo=false}
 const processador=criarProcessador(db,cfg,enviarMeta);
+if(cfg.ativacaoApos==='auto'){
+ const ativo=cfg.regraAtiva&&cfg.envioAtivo&&!cfg.testeAtivo;
+ const inicio=configurarAtivacao(db,{ativo,conta:cfg.conta});
+ if(ativo)cfg.ativacaoApos=inicio;else cfg.regraAtiva=false;
+}
 let busy=false;
 setInterval(async()=>{if(busy)return;busy=true;try{processador.planejarPendentes();await processador.enviarPendente()}catch{console.error('Falha ao processar evento.')}finally{busy=false}},2000).unref();
 function same(a,b){const x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length && timingSafeEqual(x,y)}

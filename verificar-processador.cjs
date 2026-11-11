@@ -29,6 +29,8 @@ function actions(){return db.prepare('SELECT comentario,estado FROM acoes ORDER 
  assert.equal(await targeted.enviarPendente(),'enviada');assert.deepEqual(tested,['500']);
  assert.equal(await targeted.enviarPendente(),null);assert.equal(actions().find(x=>x.comentario==='400').estado,'pendente');
  config.comentarioTeste='inválido';assert.equal(await targeted.enviarPendente(),null);
+ config.testeAtivo=false;config.envioAtivo=true;config.conta='777';assert.equal(await targeted.enviarPendente(),null);
+ assert.equal(actions().find(x=>x.comentario==='400').estado,'pendente');
  const originalFetch=global.fetch;
  try {
   global.fetch=async(url,options)=>{assert.equal(url,'https://graph.instagram.com/v25.0/100/messages');assert.equal(options.headers.authorization,'Bearer token-ficticio');assert.deepEqual(JSON.parse(options.body),{recipient:{comment_id:'300'},message:{text:'Olá!'}});return {status:200,json:async()=>({message_id:'m-ficticio'})}};

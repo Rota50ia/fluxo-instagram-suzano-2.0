@@ -16,7 +16,7 @@ function criarProcessador(db,config,transport){
    const data=JSON.parse(row.corpo);
    db.exec('BEGIN IMMEDIATE');
    try{
-    if(row.recebida_em>=config.ativacaoApos){
+    if(row.recebida_em>config.ativacaoApos){
      const ev=identificarEventos(data,[config.conta]);
      const plans=planejar(ev,[{ativa:true,conta:config.conta,tipo:'comentário',palavra:'QUERO',publicacao:config.publicacao,mensagem:config.mensagem}]);
      for(const action of plans){
@@ -38,7 +38,8 @@ function criarProcessador(db,config,transport){
    if(!/^\d{1,40}$/.test(config.conta||'') || !/^\d{1,40}$/.test(config.comentarioTeste||''))return null;
    job=db.prepare("SELECT conta,comentario,mensagem FROM acoes WHERE estado='pendente' AND conta=? AND comentario=? LIMIT 1").get(config.conta,config.comentarioTeste);
   }else if(config.envioAtivo){
-   job=db.prepare("SELECT conta,comentario,mensagem FROM acoes WHERE estado='pendente' ORDER BY criado_em LIMIT 1").get();
+   if(!/^\d{1,40}$/.test(config.conta||''))return null;
+   job=db.prepare("SELECT conta,comentario,mensagem FROM acoes WHERE estado='pendente' AND conta=? ORDER BY criado_em LIMIT 1").get(config.conta);
   }else return null;
   if(!job)return null;
   const now=new Date().toISOString();
